@@ -1,0 +1,18 @@
+<?php
+include 'db.php';
+
+if (isset($_GET['ID_PROYEK'])) {
+    $stmt = $conn->prepare("DELETE FROM proyek WHERE ID_PROYEK = ?");
+    $stmt->bind_param("i", $_GET['ID_PROYEK']);
+
+    if ($stmt->execute()) {
+        header("Location: newest.php");
+        exit();
+    } else {
+        header("Location: newest.php");
+    }
+
+    $stmt->close();
+}
+
+$conn->close();
