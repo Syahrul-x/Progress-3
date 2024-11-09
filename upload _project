@@ -1,0 +1,93 @@
+<?php
+include 'db.php'; // Pastikan file db.php terhubung dengan benar ke database 'databasesdgs'
+
+// Cek apakah data diunggah melalui metode POST
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Ambil data dari form
+    $title = $_POST["projectName"];
+    $description = $_POST["projectDescription"];
+    $sdgTag = $_POST["sdgTag"];
+
+    // Inisialisasi variabel untuk path gambar
+    $newsImage = null;
+
+    // Cek apakah file diupload dan tidak terjadi error
+    if (isset($_FILES['projectImage']) && $_FILES['projectImage']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $target_dir = "photos/"; // Direktori tujuan upload
+        // Pastikan direktori 'photos/' ada, jika tidak, buat direktori tersebut
+        if (!is_dir($target_dir)) {
+            mkdir($target_dir, 0755, true);
+        }
+
+        $target_file = $target_dir . basename($_FILES['projectImage']['name']);
+        $uploadOk = 1;
+        $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+
+        // Cek apakah file adalah gambar
+        $check = getimagesize($_FILES['projectImage']['tmp_name']);
+        if ($check !== false) {
+            $uploadOk = 1;
+        } else {
+            echo "<script>alert('File yang diupload bukan gambar.'); window.location.href = 'newest.php';</script>";
+            exit();
+        }
+
+        // Cek apakah file sudah ada
+        if (file_exists($target_file)) {
+            echo "<script>alert('Maaf, file sudah ada.'); window.location.href = 'newest.php';</script>";
+            exit();
+        }
+
+        // Cek format file yang diizinkan
+        $allowedTypes = ['jpg', 'jpeg', 'png', 'gif'];
+        if (!in_array($imageFileType, $allowedTypes)) {
+            echo "<script>alert('Maaf, hanya file JPG, JPEG, PNG, dan GIF yang diperbolehkan.'); window.location.href = 'newest.php';</script>";
+            exit();
+        }
+
+        // Cek ukuran file (misalnya maksimal 5MB)
+        if ($_FILES['projectImage']['size'] > 5 * 1024 * 1024) {
+            echo "<script>alert('Maaf, ukuran file terlalu besar. Maksimal 5MB.'); window.location.href = 'newest.php';</script>";
+            exit();
+        }
+
+        // Coba unggah file
+        if (move_uploaded_file($_FILES['projectImage']['tmp_name'], $target_file)) {
+            $newsImage = $target_file; // Simpan path file yang diupload
+        } else {
+            echo "<script>alert('Maaf, terjadi kesalahan saat mengunggah file.'); window.location.href = 'newest.php';</script>";
+            exit();
+        }
+    } else {
+        echo "<script>alert('Tidak ada file yang diupload.'); window.location.href = 'newest.php';</script>";
+        exit();
+    }
+
+    // Siapkan dan eksekusi query untuk memasukkan data ke database
+    $sql = "INSERT INTO proyek (nama, deskripsi, foto_proyek, sdgtag) VALUES (?, ?, ?, ?)";
+    if ($stmt = $conn->prepare($sql)) {
+        $stmt->bind_param("ssss", $title, $description, $newsImage, $sdgTag);
+
+        if ($stmt->execute()) {
+            // Langsung arahkan ke halaman 'newest.php' setelah berhasil
+            echo "<script>window.location.href = 'newest.php';</script>";
+        } else {
+            // Hapus file yang telah diupload jika terjadi error saat memasukkan data ke database
+            if ($newsImage && file_exists($newsImage)) {
+                unlink($newsImage);
+            }
+            echo "<script>alert('Terjadi kesalahan saat menambahkan proyek: " . $stmt->error . "'); window.location.href = 'newest.php';</script>";
+        }
+
+        $stmt->close();
+    } else {
+        echo "<script>alert('Terjadi kesalahan saat mempersiapkan query.'); window.location.href = 'newest.php';</script>";
+    }
+
+    $conn->close();
+} else {
+    // Jika bukan metode POST, arahkan kembali ke form upload
+    echo "<script>window.location.href = 'newest.php';</script>";
+    exit();
+}
+?>
